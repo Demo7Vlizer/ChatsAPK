@@ -41,6 +41,7 @@ dependencies:
   image_picker: ^1.0.7
   audio_waveforms: ^1.0.4
   path_provider: ^2.1.2
+  flutter_dotenv: ^5.1.0
   
 
   # The following adds the Cupertino Icons font to your application.
@@ -82,6 +83,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
+    - .env
     - assets/images/onboard.png
     - assets/images/googleLogo.png
     - assets/images/boy.jpg

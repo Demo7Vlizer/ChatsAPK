@@ -5,6 +5,7 @@ import '../../../data/models/message_model.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../core/config/app_config.dart';
 
 class ChatController extends GetxController {
   final ChatService _chatService = Get.find<ChatService>();
@@ -31,7 +32,7 @@ class ChatController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    print('ChatController: onInit');
+    print('Testing API Key: ${AppConfig.googleApiKey}');
     _initializeController();
   }
 
@@ -281,5 +282,10 @@ class ChatController extends GetxController {
     messageController.dispose();
     _typingTimer?.cancel();
     super.onClose();
+  }
+
+  void someFunction() {
+    final apiKey = AppConfig.googleApiKey;
+    // Use apiKey safely here
   }
 }

@@ -22,3 +22,9 @@ samples, guidance on mobile development, and a full API reference.
    - `GOOGLE_API_KEY`: Your Google API key for services
 
 Never commit the `.env` file or actual API keys to version control.
+
+## Setup Firebase
+
+1. Get `google-services.json` from Firebase Console
+2. Place it in `android/app/google-services.json`
+3. Never commit this file to version control

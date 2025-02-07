@@ -5,12 +5,16 @@ import 'app/theme/app_theme.dart';
 import 'app/bindings/initial_binding.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'app/data/services/auth_service.dart';
+import 'app/core/config/app_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   
   Get.put(AuthService()); // Initialize AuthService
+  
+  // Initialize environment variables before running app
+  await AppConfig.init();
   
   runApp(const MyApp());
 }
