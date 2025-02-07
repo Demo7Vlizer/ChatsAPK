@@ -53,3 +53,5 @@ google-services.json
 
 # Firebase config files
 GoogleService-Info.plist
+android/app/google-services.json
+*.backup

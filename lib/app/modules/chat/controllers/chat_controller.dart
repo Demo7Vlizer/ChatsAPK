@@ -82,14 +82,19 @@ class ChatController extends GetxController {
         _authService.currentUser.value!.uid,
         otherUserId,
       ]..sort();
-
       chatRoomId = users.join('_');
-      print('Initialized chat room: $chatRoomId');
+      
+      print('Creating chat room: $chatRoomId');
+      print('Current user: ${_authService.currentUser.value!.uid}');
+      print('Other user: $otherUserId');
 
-      await _chatService.createChatRoom(
-        _authService.currentUser.value!.uid,
-        otherUserId,
-      );
+      await _firestore.collection('chat_rooms').doc(chatRoomId).set({
+        'participants': users,
+        'lastMessageTime': FieldValue.serverTimestamp(),
+        'lastMessage': '',
+        'lastMessageSenderId': '',
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       _firestore
           .collection('chat_rooms')
@@ -100,13 +105,20 @@ class ChatController extends GetxController {
           .listen(
         (snapshot) {
           try {
-            print('Received messages: ${snapshot.docs.length}');
             final newMessages = snapshot.docs.map((doc) {
-              print('Message data: ${doc.data()}');
+              print('Message: ${doc.data()}');
               return MessageModel.fromMap(doc.data(), doc.id);
             }).toList();
             messages.assignAll(newMessages);
-            print('Updated messages list: ${messages.length}');
+            
+            if (newMessages.isNotEmpty) {
+              final lastMsg = newMessages.last;
+              _firestore.collection('chat_rooms').doc(chatRoomId).update({
+                'lastMessage': lastMsg.content,
+                'lastMessageSenderId': lastMsg.senderId,
+                'lastMessageTime': lastMsg.timestamp.toUtc().toIso8601String(),
+              });
+            }
           } catch (e) {
             print('Error processing messages: $e');
           }
@@ -119,7 +131,7 @@ class ChatController extends GetxController {
       print('Error in _initializeChat: $e');
       Get.snackbar(
         'Error',
-        'Failed to initialize chat',
+        'Failed to initialize chat: $e',
         snackPosition: SnackPosition.BOTTOM,
       );
     } finally {
@@ -131,39 +143,38 @@ class ChatController extends GetxController {
     if (content.trim().isEmpty) return;
 
     try {
-      final docRef = await FirebaseFirestore.instance
-          .collection('chat_rooms')
-          .doc(chatRoomId)
-          .collection('messages')
-          .add({
+      final timestamp = FieldValue.serverTimestamp();
+      final message = {
         'senderId': currentUserId,
         'receiverId': receiverId,
         'content': content.trim(),
-        'timestamp': FieldValue.serverTimestamp(),
+        'timestamp': timestamp,
         'type': type.index,
         'status': MessageStatus.sent.index,
+        'isRead': false,
+      };
+
+      await _firestore
+          .collection('chat_rooms')
+          .doc(chatRoomId)
+          .collection('messages')
+          .add(message);
+
+      await _firestore.collection('chat_rooms').doc(chatRoomId).update({
+        'lastMessage': content.trim(),
+        'lastMessageSenderId': currentUserId,
+        'lastMessageTime': timestamp,
+        'unreadCount': FieldValue.increment(1),
       });
 
-      final message = MessageModel(
-        id: docRef.id,
-        senderId: currentUserId,
-        receiverId: receiverId,
-        content: content.trim(),
-        timestamp: DateTime.now(),
-        type: type,
-        status: MessageStatus.sent,
-      );
-
-      messages.add(message);
       messageController.clear();
       updateTypingStatus(receiverId, false);
     } catch (e) {
+      print('Error sending message: $e');
       Get.snackbar(
         'Error',
         'Failed to send message',
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
       );
     }
   }

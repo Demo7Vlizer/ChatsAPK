@@ -146,7 +146,9 @@ class ChatView extends GetView<ChatController> {
                           return MessageBubble(
                             message: message,
                             isMe: isMe,
-                            onDelete: controller.deleteMessage,
+                            onLongPress: isMe 
+                              ? () => controller.deleteMessage(message)
+                              : null,
                           );
                         },
                       );
@@ -199,13 +201,13 @@ class ChatView extends GetView<ChatController> {
 class MessageBubble extends StatelessWidget {
   final MessageModel message;
   final bool isMe;
-  final Function(MessageModel) onDelete;
+  final VoidCallback? onLongPress;
 
   const MessageBubble({
     Key? key,
     required this.message,
     required this.isMe,
-    required this.onDelete,
+    this.onLongPress,
   }) : super(key: key);
 
   @override
@@ -213,7 +215,7 @@ class MessageBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: GestureDetector(
-        onLongPress: isMe ? () => _showDeleteDialog(context) : null,
+        onLongPress: onLongPress,
         child: Align(
           alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
           child: Container(
@@ -277,31 +279,6 @@ class MessageBubble extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  void _showDeleteDialog(BuildContext context) {
-    Get.dialog(
-      AlertDialog(
-        title: const Text('Delete Message'),
-        content: const Text('Are you sure you want to delete this message?'),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              onDelete(message);
-              Get.back();
-            },
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
       ),
     );
   }
