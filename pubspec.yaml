@@ -42,6 +42,8 @@ dependencies:
   audio_waveforms: ^1.0.4
   path_provider: ^2.1.2
   flutter_dotenv: ^5.1.0
+  flutter_image_compress: ^2.1.0
+  cloudinary_public: ^0.21.0
   
 
   # The following adds the Cupertino Icons font to your application.
@@ -53,6 +55,7 @@ dev_dependencies:
   flutter_launcher_icons: ^0.13.1
   flutter_lints: ^5.0.0
   intl: ^0.18.1
+  
 
 # Add flutter_launcher_icons configuration at root level (not under dev_dependencies)
 flutter_launcher_icons:

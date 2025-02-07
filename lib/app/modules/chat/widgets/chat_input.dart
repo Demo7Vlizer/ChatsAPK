@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class ChatInput extends StatefulWidget {
   final Function(String) onTextChanged;
   final Function(String) onSendPressed;
+  final Function(File) onImageSelected;
 
   const ChatInput({
     Key? key,
     required this.onTextChanged,
     required this.onSendPressed,
+    required this.onImageSelected,
   }) : super(key: key);
 
   @override
@@ -66,7 +70,17 @@ class _ChatInputState extends State<ChatInput> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.attach_file),
-                      onPressed: () {},
+                      onPressed: () async {
+                        final ImagePicker picker = ImagePicker();
+                        final XFile? image = await picker.pickImage(
+                          source: ImageSource.gallery,
+                          imageQuality: 70,
+                        );
+
+                        if (image != null) {
+                          widget.onImageSelected(File(image.path));
+                        }
+                      },
                       color: Colors.grey[600],
                     ),
                   ],
@@ -92,4 +106,4 @@ class _ChatInputState extends State<ChatInput> {
       ),
     );
   }
-} 
+}

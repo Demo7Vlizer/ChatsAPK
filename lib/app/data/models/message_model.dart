@@ -52,7 +52,7 @@ class MessageModel {
       id: id,
       senderId: map['senderId'] as String,
       receiverId: map['receiverId'] ?? '',
-      content: map['content'] as String,
+      content: map['content'] ?? '',
       timestamp: messageTime,
       type: MessageType.values[map['type'] is int ? map['type'] : 0],
       status: MessageStatus.values[map['status'] is int ? map['status'] : 0],

@@ -6,6 +6,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/config/app_config.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class ChatController extends GetxController {
   final ChatService _chatService = Get.find<ChatService>();
@@ -57,7 +59,7 @@ class ChatController extends GetxController {
       _initializeChat();
       _listenToUserStatus();
       ever(messages, (_) => _markMessagesAsRead());
-      
+
       isInitialized.value = true;
     } catch (e) {
       print('Error initializing chat: $e');
@@ -83,7 +85,7 @@ class ChatController extends GetxController {
         otherUserId,
       ]..sort();
       chatRoomId = users.join('_');
-      
+
       await _firestore.collection('chat_rooms').doc(chatRoomId).set({
         'participants': users,
         'lastMessageTime': FieldValue.serverTimestamp(),
@@ -128,7 +130,8 @@ class ChatController extends GetxController {
     }
   }
 
-  Future<void> sendMessage(String receiverId, String content, MessageType type) async {
+  Future<void> sendMessage(
+      String receiverId, String content, MessageType type) async {
     if (content.trim().isEmpty) return;
 
     try {
@@ -142,6 +145,22 @@ class ChatController extends GetxController {
         'Failed to send message',
         snackPosition: SnackPosition.BOTTOM,
       );
+    }
+  }
+
+  Future<void> sendImage(File imageFile) async {
+    try {
+      isLoading.value = true;
+      await _chatService.sendImage(chatRoomId, currentUserId, imageFile);
+    } catch (e) {
+      print('Error sending image: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to send image',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    } finally {
+      isLoading.value = false;
     }
   }
 
@@ -237,7 +256,7 @@ class ChatController extends GetxController {
           .delete();
 
       messages.removeWhere((m) => m.id == message.id);
-      
+
       // Get.snackbar(
       //   'Success',
       //   'Message deleted successfully',

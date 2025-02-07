@@ -141,13 +141,14 @@ class ChatView extends GetView<ChatController> {
                         itemCount: controller.messages.length,
                         itemBuilder: (context, index) {
                           final message = controller.messages[index];
-                          final isMe = message.senderId == controller.currentUserId;
+                          final isMe =
+                              message.senderId == controller.currentUserId;
                           return MessageBubble(
                             message: message,
                             isMe: isMe,
-                            onLongPress: isMe 
-                              ? () => controller.deleteMessage(message)
-                              : null,
+                            onLongPress: isMe
+                                ? () => controller.deleteMessage(message)
+                                : null,
                           );
                         },
                       );
@@ -183,6 +184,9 @@ class ChatView extends GetView<ChatController> {
                       onSendPressed: (text) {
                         controller.sendMessage(
                             controller.otherUserId, text, MessageType.text);
+                      },
+                      onImageSelected: (file) {
+                        controller.sendImage(file);
                       },
                     ),
                   ),
@@ -242,13 +246,44 @@ class MessageBubble extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  message.content,
-                  style: TextStyle(
-                    color: isMe ? Colors.white : Colors.black87,
-                    fontSize: 16,
+                if (message.type == MessageType.image)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.network(
+                      message.content,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return SizedBox(
+                          width: 200,
+                          height: 200,
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                  : null,
+                            ),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 200,
+                          height: 200,
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.error),
+                        );
+                      },
+                    ),
+                  )
+                else
+                  Text(
+                    message.content,
+                    style: TextStyle(
+                      color: isMe ? Colors.white : Colors.black87,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
                 const SizedBox(height: 4),
                 Row(
                   mainAxisSize: MainAxisSize.min,
