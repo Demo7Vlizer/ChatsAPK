@@ -49,11 +49,11 @@ class _ChatInputState extends State<ChatInput> {
                 ),
                 child: Row(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.sentiment_satisfied_alt_outlined),
-                      onPressed: () {},
-                      color: Colors.grey[600],
-                    ),
+                    // IconButton(
+                    //   icon: const Icon(Icons.sentiment_satisfied_alt_outlined),
+                    //   onPressed: () {},
+                    //   color: Colors.grey[600],
+                    // ),
                     Expanded(
                       child: TextField(
                         controller: _controller,
