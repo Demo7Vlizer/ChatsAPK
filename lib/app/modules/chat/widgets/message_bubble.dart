@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../data/models/message_model.dart';
-import 'package:intl/intl.dart';
+// import 'package:intl/intl.dart';
 
 class MessageBubble extends StatelessWidget {
   final MessageModel message;

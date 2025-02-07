@@ -27,23 +27,35 @@ class MessageModel {
       'senderId': senderId,
       'receiverId': receiverId,
       'content': content,
-      'timestamp': timestamp.millisecondsSinceEpoch,
-      'type': type.toString(),
-      'status': status.toString(),
+      'timestamp': FieldValue.serverTimestamp(),
+      'type': type.index,
+      'status': status.index,
       'isDeleted': isDeleted,
     };
   }
 
   factory MessageModel.fromMap(Map<String, dynamic> map, String id) {
     print('Parsing message: $map');
+    
+    dynamic timestamp = map['timestamp'];
+    DateTime messageTime;
+    
+    if (timestamp is Timestamp) {
+      messageTime = timestamp.toDate();
+    } else if (timestamp is int) {
+      messageTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    } else {
+      messageTime = DateTime.now();
+    }
+
     return MessageModel(
       id: id,
       senderId: map['senderId'] as String,
       receiverId: map['receiverId'] ?? '',
       content: map['content'] as String,
-      timestamp: (map['timestamp'] as Timestamp).toDate(),
-      type: MessageType.values[map['type'] as int],
-      status: MessageStatus.values[map['status'] as int],
+      timestamp: messageTime,
+      type: MessageType.values[map['type'] is int ? map['type'] : 0],
+      status: MessageStatus.values[map['status'] is int ? map['status'] : 0],
       isDeleted: map['isDeleted'] ?? false,
     );
   }

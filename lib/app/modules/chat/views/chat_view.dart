@@ -141,8 +141,7 @@ class ChatView extends GetView<ChatController> {
                         itemCount: controller.messages.length,
                         itemBuilder: (context, index) {
                           final message = controller.messages[index];
-                          final isMe =
-                              message.senderId == controller.currentUserId;
+                          final isMe = message.senderId == controller.currentUserId;
                           return MessageBubble(
                             message: message,
                             isMe: isMe,

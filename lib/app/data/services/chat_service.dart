@@ -20,48 +20,23 @@ class ChatService extends GetxService {
   // Send message with real-time updates
   Future<void> sendMessage(String chatId, String senderId, String content) async {
     try {
-      print('===== CHAT SERVICE: SEND MESSAGE =====');
-      print('ChatId: $chatId');
-      print('SenderId: $senderId');
-      
-      // Verify chat room exists
-      final chatRoom = await _firestore.collection('chat_rooms').doc(chatId).get();
-      print('Chat room exists: ${chatRoom.exists}');
-      
-      if (!chatRoom.exists) {
-        print('Creating new chat room...');
-        await createChatRoom(senderId, chatId.split('_').firstWhere((id) => id != senderId));
-      }
+      final message = {
+        'senderId': senderId,
+        'receiverId': chatId.split('_').firstWhere((id) => id != senderId),
+        'content': content.trim(),
+        'timestamp': FieldValue.serverTimestamp(),
+        'type': MessageType.text.index,
+        'status': MessageStatus.sent.index,
+        'isRead': false,
+      };
 
-      final message = MessageModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        senderId: senderId,
-        receiverId: chatId.split('_').firstWhere((id) => id != senderId),
-        content: content,
-        timestamp: DateTime.now(),
-        type: MessageType.text,
-        status: MessageStatus.sent,
-      );
-
-      print('Saving message to Firestore...');
       await _firestore
           .collection('chat_rooms')
           .doc(chatId)
           .collection('messages')
-          .doc(message.id)
-          .set(message.toMap());
-
-      print('Updating chat room metadata...');
-      await _firestore.collection('chat_rooms').doc(chatId).update({
-        'lastMessage': content,
-        'lastMessageTime': DateTime.now().toIso8601String(),
-        'lastMessageSenderId': senderId,
-      });
-      
-      print('Message sent successfully!');
+          .add(message);
     } catch (e) {
       print('Error in ChatService.sendMessage: $e');
-      print('Stack trace: ${StackTrace.current}');
       throw 'Failed to send message: $e';
     }
   }

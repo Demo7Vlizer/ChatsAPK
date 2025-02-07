@@ -84,10 +84,6 @@ class ChatController extends GetxController {
       ]..sort();
       chatRoomId = users.join('_');
       
-      print('Creating chat room: $chatRoomId');
-      print('Current user: ${_authService.currentUser.value!.uid}');
-      print('Other user: $otherUserId');
-
       await _firestore.collection('chat_rooms').doc(chatRoomId).set({
         'participants': users,
         'lastMessageTime': FieldValue.serverTimestamp(),
@@ -96,29 +92,26 @@ class ChatController extends GetxController {
         'createdAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
+      // Listen to messages in real-time
       _firestore
           .collection('chat_rooms')
           .doc(chatRoomId)
           .collection('messages')
-          .orderBy('timestamp', descending: false)
+          .orderBy('timestamp')
           .snapshots()
           .listen(
         (snapshot) {
           try {
-            final newMessages = snapshot.docs.map((doc) {
-              print('Message: ${doc.data()}');
-              return MessageModel.fromMap(doc.data(), doc.id);
-            }).toList();
-            messages.assignAll(newMessages);
-            
-            if (newMessages.isNotEmpty) {
-              final lastMsg = newMessages.last;
-              _firestore.collection('chat_rooms').doc(chatRoomId).update({
-                'lastMessage': lastMsg.content,
-                'lastMessageSenderId': lastMsg.senderId,
-                'lastMessageTime': lastMsg.timestamp.toUtc().toIso8601String(),
-              });
+            messages.clear();
+            for (var doc in snapshot.docs) {
+              try {
+                final message = MessageModel.fromMap(doc.data(), doc.id);
+                messages.add(message);
+              } catch (e) {
+                print('Error parsing message: $e');
+              }
             }
+            print('Messages loaded: ${messages.length}');
           } catch (e) {
             print('Error processing messages: $e');
           }
@@ -129,11 +122,7 @@ class ChatController extends GetxController {
       );
     } catch (e) {
       print('Error in _initializeChat: $e');
-      Get.snackbar(
-        'Error',
-        'Failed to initialize chat: $e',
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      Get.snackbar('Error', 'Failed to initialize chat');
     } finally {
       isLoading.value = false;
     }
@@ -143,30 +132,7 @@ class ChatController extends GetxController {
     if (content.trim().isEmpty) return;
 
     try {
-      final timestamp = FieldValue.serverTimestamp();
-      final message = {
-        'senderId': currentUserId,
-        'receiverId': receiverId,
-        'content': content.trim(),
-        'timestamp': timestamp,
-        'type': type.index,
-        'status': MessageStatus.sent.index,
-        'isRead': false,
-      };
-
-      await _firestore
-          .collection('chat_rooms')
-          .doc(chatRoomId)
-          .collection('messages')
-          .add(message);
-
-      await _firestore.collection('chat_rooms').doc(chatRoomId).update({
-        'lastMessage': content.trim(),
-        'lastMessageSenderId': currentUserId,
-        'lastMessageTime': timestamp,
-        'unreadCount': FieldValue.increment(1),
-      });
-
+      await _chatService.sendMessage(chatRoomId, currentUserId, content);
       messageController.clear();
       updateTypingStatus(receiverId, false);
     } catch (e) {
@@ -293,10 +259,5 @@ class ChatController extends GetxController {
     messageController.dispose();
     _typingTimer?.cancel();
     super.onClose();
-  }
-
-  void someFunction() {
-    final apiKey = AppConfig.googleApiKey;
-    // Use apiKey safely here
   }
 }
