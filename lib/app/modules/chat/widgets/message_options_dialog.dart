@@ -24,16 +24,16 @@ class MessageOptionsDialog extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-        child: Column( 
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
               'Message Options',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: const Color(0xFF6C63FF),
-                fontWeight: FontWeight.bold,
-              ),
+                    color: const Color(0xFF6C63FF),
+                    fontWeight: FontWeight.bold,
+                  ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
@@ -108,4 +108,4 @@ class _OptionButton extends StatelessWidget {
       ),
     );
   }
-} 
+}
