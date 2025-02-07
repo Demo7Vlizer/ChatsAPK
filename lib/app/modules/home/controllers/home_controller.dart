@@ -4,6 +4,7 @@ import 'package:my/app/routes/app_pages.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/models/user_model.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HomeController extends GetxController {
   final AuthService _authService = Get.find<AuthService>();
@@ -13,10 +14,12 @@ class HomeController extends GetxController {
   final RxString userName = ''.obs;
   final RxList<UserModel> users = <UserModel>[].obs;
   final RxList<UserModel> filteredUsers = <UserModel>[].obs;
+  final userPhotoUrl = ''.obs;
 
   @override
   void onInit() {
     super.onInit();
+    userPhotoUrl.value = FirebaseAuth.instance.currentUser?.photoURL ?? '';
     if (_authService.currentUser.value != null) {
       userName.value = _authService.currentUser.value!.displayName ?? 'User';
       loadUsers();

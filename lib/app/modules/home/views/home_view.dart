@@ -40,14 +40,19 @@ class HomeView extends GetView<HomeController> {
                   ),
                   GestureDetector(
                     onTap: controller.signOut,
-                    child: const CircleAvatar(
+                    child: Obx(() => CircleAvatar(
                       radius: 18,
                       backgroundColor: Colors.white24,
-                      child: Icon(
-                        Icons.person_outline,
-                        color: Colors.white,
-                      ),
-                    ),
+                      backgroundImage: controller.userPhotoUrl.value.isNotEmpty
+                          ? NetworkImage(controller.userPhotoUrl.value)
+                          : null,
+                      child: controller.userPhotoUrl.value.isEmpty
+                          ? const Icon(
+                              Icons.person_outline,
+                              color: Colors.white,
+                            )
+                          : null,
+                    )),
                   ),
                 ],
               ),
