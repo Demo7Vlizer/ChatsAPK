@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="your.new.packagename">
+    package="com.mdspl.my">
     <application
         android:label="my"
         android:name="${applicationName}"

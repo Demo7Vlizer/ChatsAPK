@@ -8,6 +8,8 @@ import '../modules/home/bindings/home_binding.dart';
 import '../modules/home/views/home_view.dart';
 import '../modules/onboarding/bindings/onboarding_binding.dart';
 import '../modules/onboarding/views/onboarding_view.dart';
+import '../modules/chat/views/chat_view.dart';
+import '../modules/chat/bindings/chat_binding.dart';
 
 // import 'dart:ui';
 
@@ -36,6 +38,11 @@ class AppPages {
       binding: ChatPageBinding(),
       transition: Transition.rightToLeft,
       transitionDuration: const Duration(milliseconds: 300),
+    ),
+    GetPage(
+      name: Routes.CHAT,
+      page: () => ChatView(),
+      binding: ChatBinding(),
     ),
   ];
 }

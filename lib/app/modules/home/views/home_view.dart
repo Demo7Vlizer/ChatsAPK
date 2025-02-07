@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:my/app/routes/app_pages.dart';
 import '../controllers/home_controller.dart';
-// import '../routes/app_routes.dart';
 
 class HomeView extends GetView<HomeController> {
   const HomeView({Key? key}) : super(key: key);
@@ -29,14 +27,14 @@ class HomeView extends GetView<HomeController> {
                           color: Colors.white,
                         ),
                       ),
-                      Text(
-                        'Shivam',
+                      Obx(() => Text(
+                        controller.userName.value,
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
-                      ),
+                      )),
                     ],
                   ),
                   GestureDetector(
@@ -101,6 +99,7 @@ class HomeView extends GetView<HomeController> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       child: TextField(
+                        controller: controller.searchController,
                         decoration: InputDecoration(
                           hintText: 'Search Username...',
                           prefixIcon: const Icon(Icons.search),
@@ -115,13 +114,25 @@ class HomeView extends GetView<HomeController> {
                     ),
                     const SizedBox(height: 20),
                     // Chat List
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: ChatItem(
-                        name: 'Shyam Gupta',
-                        message: 'Hello, how are you?',
-                        time: '02:00 PM',
-                      ),
+                    Expanded(
+                      child: Obx(() => ListView.builder(
+                        itemCount: controller.filteredUsers.length,
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        itemBuilder: (context, index) {
+                          final user = controller.filteredUsers[index];
+                          return ChatItem(
+                            name: user.name,
+                            photoUrl: user.photoUrl,
+                            message: 'Tap to start chatting',
+                            time: user.isOnline ? 'Online' : 'Offline',
+                            onTap: () => controller.startChat(
+                              user.uid,
+                              user.name,
+                              user.photoUrl,
+                            ),
+                          );
+                        },
+                      )),
                     ),
                   ],
                 ),
@@ -136,21 +147,26 @@ class HomeView extends GetView<HomeController> {
 
 class ChatItem extends StatelessWidget {
   final String name;
+  final String photoUrl;
   final String message;
   final String time;
+  final VoidCallback onTap;
 
   const ChatItem({
     Key? key,
     required this.name,
+    required this.photoUrl,
     required this.message,
     required this.time,
+    required this.onTap,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Get.toNamed(Routes.CHAT_PAGE),
+      onTap: onTap,
       child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -166,9 +182,9 @@ class ChatItem extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const CircleAvatar(
+            CircleAvatar(
               radius: 25,
-              backgroundImage: AssetImage('assets/images/boy.jpg'),
+              backgroundImage: NetworkImage(photoUrl),
             ),
             const SizedBox(width: 12),
             Expanded(

@@ -3,8 +3,15 @@ import 'package:get/get.dart';
 import 'app/routes/app_pages.dart';
 import 'app/theme/app_theme.dart';
 import 'app/bindings/initial_binding.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'app/data/services/auth_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+  
+  Get.put(AuthService()); // Initialize AuthService
+  
   runApp(const MyApp());
 }
 

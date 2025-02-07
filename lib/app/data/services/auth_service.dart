@@ -1,62 +1,97 @@
 import 'package:get/get.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthService extends GetxService {
-  final RxBool isLoggedIn = false.obs;
-  final Rx<UserModel?> currentUser = Rx<UserModel?>(null);
-  
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  // Observable user state
+  Rx<User?> currentUser = Rx<User?>(null);
+
   @override
   void onInit() {
+    currentUser.bindStream(_auth.authStateChanges());
+    ever(currentUser, _handleUserStatus);
     super.onInit();
-    // Simulate checking stored credentials
-    checkLoginStatus();
   }
 
-  void checkLoginStatus() {
-    // Simulate checking stored credentials
-    isLoggedIn.value = false;
-    currentUser.value = null;
+  void _handleUserStatus(User? user) async {
+    if (user != null) {
+      await _firestore.collection('users').doc(user.uid).update({
+        'isOnline': true,
+        'lastSeen': DateTime.now().toIso8601String(),
+      });
+    }
   }
 
   Future<bool> signInWithGoogle() async {
     try {
-      // Simulate network delay
-      await Future.delayed(const Duration(seconds: 1));
-      
-      // Simulate successful login
-      currentUser.value = UserModel(
-        id: '1',
-        name: 'Test User',
-        email: 'test@example.com',
-        photoUrl: 'https://via.placeholder.com/150',
+      // Trigger Google Sign In
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return false;
+
+      // Obtain auth details
+      final GoogleSignInAuthentication googleAuth = 
+          await googleUser.authentication;
+
+      // Create credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
       );
-      isLoggedIn.value = true;
-      return true;
+
+      // Sign in to Firebase
+      final UserCredential userCredential = 
+          await _auth.signInWithCredential(credential);
+      
+      // Save user data to Firestore
+      if (userCredential.user != null) {
+        await _saveUserToFirestore(userCredential.user!);
+        return true;
+      }
+      return false;
     } catch (e) {
-      print('Error signing in: $e');
+      print('Error signing in with Google: $e');
       return false;
     }
   }
 
-  Future<void> signOut() async {
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 500));
-    isLoggedIn.value = false;
-    currentUser.value = null;
+  Future<void> _saveUserToFirestore(User user) async {
+    final userRef = _firestore.collection('users').doc(user.uid);
+    
+    // Check if user exists
+    final userDoc = await userRef.get();
+    if (!userDoc.exists) {
+      // Create new user document
+      await userRef.set({
+        'uid': user.uid,
+        'name': user.displayName ?? '',
+        'email': user.email ?? '',
+        'photoUrl': user.photoURL ?? '',
+        'lastSeen': DateTime.now().toIso8601String(),
+        'isOnline': true,
+        'createdAt': DateTime.now().toIso8601String(),
+      });
+    } else {
+      // Update existing user
+      await userRef.update({
+        'lastSeen': DateTime.now().toIso8601String(),
+        'isOnline': true,
+      });
+    }
   }
 
-  bool get isSignedIn => isLoggedIn.value;
-}
-
-class UserModel {
-  final String id;
-  final String name;
-  final String email;
-  final String photoUrl;
-
-  UserModel({
-    required this.id,
-    required this.name,
-    required this.email,
-    required this.photoUrl,
-  });
+  Future<void> signOut() async {
+    if (currentUser.value != null) {
+      await _firestore.collection('users').doc(currentUser.value!.uid).update({
+        'isOnline': false,
+        'lastSeen': DateTime.now().toIso8601String(),
+      });
+    }
+    await _googleSignIn.signOut();
+    await _auth.signOut();
+  }
 } 
