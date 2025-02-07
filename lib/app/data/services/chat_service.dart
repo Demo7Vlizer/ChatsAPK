@@ -101,7 +101,7 @@ class ChatService extends GetxService {
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
-            .map((doc) => MessageModel.fromMap(doc.data()))
+            .map((doc) => MessageModel.fromMap(doc.data(), doc.id))
             .toList());
   }
 
@@ -151,5 +151,22 @@ class ChatService extends GetxService {
         .doc(chatId)
         .snapshots()
         .map((doc) => doc.exists ? ChatRoomModel.fromMap(doc.data()!) : null);
+  }
+
+  Future<void> deleteMessage(String chatId, String messageId) async {
+    try {
+      await _firestore
+          .collection('chat_rooms')
+          .doc(chatId)
+          .collection('messages')
+          .doc(messageId)
+          .update({
+        'isDeleted': true,
+        'content': 'This message was deleted',
+      });
+    } catch (e) {
+      print('Error deleting message: $e');
+      throw 'Failed to delete message';
+    }
   }
 } 

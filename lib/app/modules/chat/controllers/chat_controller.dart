@@ -10,10 +10,10 @@ class ChatController extends GetxController {
   final ChatService _chatService = Get.find<ChatService>();
   final AuthService _authService = Get.find<AuthService>();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
+
   final RxList<MessageModel> messages = <MessageModel>[].obs;
   final isLoading = false.obs;
-  
+
   late String chatRoomId;
   late String otherUserId;
 
@@ -26,38 +26,62 @@ class ChatController extends GetxController {
 
   final RxBool isOtherUserOnline = false.obs;
 
+  final isInitialized = false.obs;
+
   @override
   void onInit() {
     super.onInit();
     print('ChatController: onInit');
-    
-    if (!Get.arguments.containsKey('userId')) {
-      print('Error: No userId provided');
-      Get.back();
-      return;
-    }
+    _initializeController();
+  }
 
-    otherUserId = Get.arguments['userId'];
-    otherUserName = Get.arguments['userName'] ?? 'User';
-    otherUserPhoto = Get.arguments['userPhoto'] ?? '';
-    
-    print('OtherUserId: $otherUserId');
-    print('Current user: ${_authService.currentUser.value?.uid}');
-    
-    _initializeChat();
-    _listenToUserStatus();
-    ever(messages, (_) => _markMessagesAsRead());
+  void _initializeController() {
+    try {
+      if (Get.arguments == null) {
+        throw 'No arguments provided';
+      }
+
+      final userId = Get.arguments['userId'];
+      if (userId == null || userId.toString().isEmpty) {
+        throw 'Invalid userId';
+      }
+
+      otherUserId = userId.toString();
+      otherUserName = Get.arguments['userName']?.toString() ?? 'User';
+      otherUserPhoto = Get.arguments['userPhoto']?.toString() ?? '';
+
+      print('OtherUserId: $otherUserId');
+      print('Current user: ${_authService.currentUser.value?.uid}');
+
+      _initializeChat();
+      _listenToUserStatus();
+      ever(messages, (_) => _markMessagesAsRead());
+      
+      isInitialized.value = true;
+    } catch (e) {
+      print('Error initializing chat: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to initialize chat: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      Get.back();
+    }
   }
 
   Future<void> _initializeChat() async {
     try {
       isLoading.value = true;
-      
+
+      if (_authService.currentUser.value?.uid == null) {
+        throw 'User not authenticated';
+      }
+
       final users = [
         _authService.currentUser.value!.uid,
         otherUserId,
       ]..sort();
-      
+
       chatRoomId = users.join('_');
       print('Initialized chat room: $chatRoomId');
 
@@ -66,7 +90,6 @@ class ChatController extends GetxController {
         otherUserId,
       );
 
-      // Update the query to order by timestamp ascending
       _firestore
           .collection('chat_rooms')
           .doc(chatRoomId)
@@ -75,23 +98,29 @@ class ChatController extends GetxController {
           .snapshots()
           .listen(
         (snapshot) {
-          print('Received messages: ${snapshot.docs.length}');
-          final newMessages = snapshot.docs
-              .map((doc) {
-                print('Message data: ${doc.data()}');
-                return MessageModel.fromMap(doc.data());
-              })
-              .toList();
-          messages.assignAll(newMessages);
-          print('Updated messages list: ${messages.length}');
+          try {
+            print('Received messages: ${snapshot.docs.length}');
+            final newMessages = snapshot.docs.map((doc) {
+              print('Message data: ${doc.data()}');
+              return MessageModel.fromMap(doc.data(), doc.id);
+            }).toList();
+            messages.assignAll(newMessages);
+            print('Updated messages list: ${messages.length}');
+          } catch (e) {
+            print('Error processing messages: $e');
+          }
         },
         onError: (error) {
           print('Error listening to messages: $error');
         },
       );
-
     } catch (e) {
       print('Error in _initializeChat: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to initialize chat',
+        snackPosition: SnackPosition.BOTTOM,
+      );
     } finally {
       isLoading.value = false;
     }
@@ -99,37 +128,48 @@ class ChatController extends GetxController {
 
   Future<void> sendMessage(String receiverId, String content, MessageType type) async {
     if (content.trim().isEmpty) return;
-    
+
     try {
-      if (chatRoomId.isEmpty) {
-        print('Error: ChatRoomId is empty');
-        throw 'Chat room not initialized';
-      }
+      final docRef = await FirebaseFirestore.instance
+          .collection('chat_rooms')
+          .doc(chatRoomId)
+          .collection('messages')
+          .add({
+        'senderId': currentUserId,
+        'receiverId': receiverId,
+        'content': content.trim(),
+        'timestamp': FieldValue.serverTimestamp(),
+        'type': type.index,
+        'status': MessageStatus.sent.index,
+      });
 
-      if (_authService.currentUser.value?.uid == null) {
-        print('Error: Current user is null');
-        throw 'User not authenticated';
-      }
-
-      await _chatService.sendMessage(
-        chatRoomId,
-        currentUserId,
-        content.trim(),
+      final message = MessageModel(
+        id: docRef.id,
+        senderId: currentUserId,
+        receiverId: receiverId,
+        content: content.trim(),
+        timestamp: DateTime.now(),
+        type: type,
+        status: MessageStatus.sent,
       );
-      
+
+      messages.add(message);
       messageController.clear();
       updateTypingStatus(receiverId, false);
     } catch (e) {
-      print('Error sending message: $e');
       Get.snackbar(
         'Error',
-        'Failed to send message: $e',
+        'Failed to send message',
         snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
     }
   }
 
   String get currentUserId => _authService.currentUser.value?.uid ?? '';
+
+  String get currentChatId => chatRoomId;
 
   void onTyping() {
     isTyping.value = true;
@@ -153,7 +193,7 @@ class ChatController extends GetxController {
 
   void _markMessagesAsRead() {
     if (messages.isEmpty) return;
-    
+
     _firestore
         .collection('chat_rooms')
         .doc(chatRoomId)
@@ -175,7 +215,7 @@ class ChatController extends GetxController {
 
   void updateTypingStatus(String receiverId, bool typing) {
     if (_typingTimer?.isActive ?? false) _typingTimer!.cancel();
-    
+
     _firestore.collection('typing_status').doc(currentUserId).set({
       'isTyping': typing,
       'timestamp': FieldValue.serverTimestamp(),
@@ -190,18 +230,50 @@ class ChatController extends GetxController {
   }
 
   Stream<bool> getTypingStatus(String userId) {
-    return _firestore.collection('typing_status')
+    return _firestore
+        .collection('typing_status')
         .doc(userId)
         .snapshots()
         .map((snapshot) {
       if (!snapshot.exists) return false;
       final data = snapshot.data()!;
       if (data['receiverId'] != currentUserId) return false;
-      
+
       final timestamp = (data['timestamp'] as Timestamp).toDate();
       final diff = DateTime.now().difference(timestamp);
       return data['isTyping'] && diff.inSeconds < 6;
     });
+  }
+
+  Future<void> deleteMessage(MessageModel message) async {
+    try {
+      if (message.senderId != currentUserId) {
+        throw 'You can only delete your own messages';
+      }
+
+      await FirebaseFirestore.instance
+          .collection('chat_rooms')
+          .doc(chatRoomId)
+          .collection('messages')
+          .doc(message.id)
+          .delete();
+
+      messages.removeWhere((m) => m.id == message.id);
+      
+      // Get.snackbar(
+      //   'Success',
+      //   'Message deleted successfully',
+      //   snackPosition: SnackPosition.BOTTOM,
+      //   duration: const Duration(seconds: 2),
+      // );
+    } catch (e) {
+      print('Error deleting message: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to delete message: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
   }
 
   @override
@@ -210,4 +282,4 @@ class ChatController extends GetxController {
     _typingTimer?.cancel();
     super.onClose();
   }
-} 
+}

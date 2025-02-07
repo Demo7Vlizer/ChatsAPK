@@ -8,6 +8,7 @@ class MessageModel {
   final DateTime timestamp;
   final MessageType type;
   final MessageStatus status;
+  final bool isDeleted;
   
   MessageModel({
     required this.id,
@@ -15,8 +16,9 @@ class MessageModel {
     required this.receiverId,
     required this.content,
     required this.timestamp,
-    this.type = MessageType.text,
-    this.status = MessageStatus.sent,
+    required this.type,
+    required this.status,
+    this.isDeleted = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -28,27 +30,21 @@ class MessageModel {
       'timestamp': timestamp.millisecondsSinceEpoch,
       'type': type.toString(),
       'status': status.toString(),
+      'isDeleted': isDeleted,
     };
   }
 
-  factory MessageModel.fromMap(Map<String, dynamic> map) {
+  factory MessageModel.fromMap(Map<String, dynamic> map, String id) {
     print('Parsing message: $map');
     return MessageModel(
-      id: map['id'] ?? '',
-      senderId: map['senderId'] ?? '',
+      id: id,
+      senderId: map['senderId'] as String,
       receiverId: map['receiverId'] ?? '',
-      content: map['content'] ?? '',
-      timestamp: map['timestamp'] is Timestamp 
-          ? (map['timestamp'] as Timestamp).toDate()
-          : DateTime.now(),
-      type: MessageType.values.firstWhere(
-        (e) => e.toString() == map['type'],
-        orElse: () => MessageType.text,
-      ),
-      status: MessageStatus.values.firstWhere(
-        (e) => e.toString() == map['status'],
-        orElse: () => MessageStatus.sent,
-      ),
+      content: map['content'] as String,
+      timestamp: (map['timestamp'] as Timestamp).toDate(),
+      type: MessageType.values[map['type'] as int],
+      status: MessageStatus.values[map['status'] as int],
+      isDeleted: map['isDeleted'] ?? false,
     );
   }
 }
