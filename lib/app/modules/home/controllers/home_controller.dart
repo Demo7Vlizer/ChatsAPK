@@ -9,17 +9,17 @@ class HomeController extends GetxController {
   final AuthService _authService = Get.find<AuthService>();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
-  final RxString userName = 'User'.obs;
+  final searchController = TextEditingController();
+  final RxString userName = ''.obs;
   final RxList<UserModel> users = <UserModel>[].obs;
   final RxList<UserModel> filteredUsers = <UserModel>[].obs;
-  final searchController = TextEditingController();
 
   @override
   void onInit() {
     super.onInit();
     if (_authService.currentUser.value != null) {
       userName.value = _authService.currentUser.value!.displayName ?? 'User';
-      _loadUsers();
+      loadUsers();
       _setupSearchListener();
     }
   }
@@ -38,21 +38,28 @@ class HomeController extends GetxController {
     });
   }
 
-  void _loadUsers() {
-    _firestore
-        .collection('users')
-        .where('uid', isNotEqualTo: _authService.currentUser.value!.uid)
-        .snapshots()
-        .listen((snapshot) {
-      final usersList = snapshot.docs
-          .map((doc) => UserModel.fromMap(doc.data()))
+  void loadUsers() async {
+    try {
+      final snapshot = await _firestore.collection('users').get();
+      users.value = snapshot.docs
+          .map((doc) => UserModel.fromMap({
+                'id': doc.id,
+                ...doc.data(),
+              }))
+          .where((user) => user.id != _authService.currentUser.value?.uid)
           .toList();
-      users.value = usersList;
-      filteredUsers.value = usersList; // Initialize filtered list
-    });
+      filteredUsers.value = users;
+    } catch (e) {
+      print('Error loading users: $e');
+    }
   }
 
   void startChat(String userId, String userName, String userPhoto) {
+    print('Starting chat with:');
+    print('UserID: $userId');
+    print('UserName: $userName');
+    print('UserPhoto: $userPhoto');
+    
     Get.toNamed(
       Routes.CHAT, 
       arguments: {

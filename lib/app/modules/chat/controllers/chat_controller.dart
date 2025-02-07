@@ -11,7 +11,7 @@ class ChatController extends GetxController {
   final AuthService _authService = Get.find<AuthService>();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
-  final messages = <MessageModel>[].obs;
+  final RxList<MessageModel> messages = <MessageModel>[].obs;
   final isLoading = false.obs;
   
   late String chatRoomId;
@@ -29,9 +29,21 @@ class ChatController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    print('ChatController: onInit');
+    
+    if (!Get.arguments.containsKey('userId')) {
+      print('Error: No userId provided');
+      Get.back();
+      return;
+    }
+
     otherUserId = Get.arguments['userId'];
     otherUserName = Get.arguments['userName'] ?? 'User';
     otherUserPhoto = Get.arguments['userPhoto'] ?? '';
+    
+    print('OtherUserId: $otherUserId');
+    print('Current user: ${_authService.currentUser.value?.uid}');
+    
     _initializeChat();
     _listenToUserStatus();
     ever(messages, (_) => _markMessagesAsRead());
@@ -40,68 +52,84 @@ class ChatController extends GetxController {
   Future<void> _initializeChat() async {
     try {
       isLoading.value = true;
-      chatRoomId = await _chatService.createChatRoom(
+      
+      final users = [
+        _authService.currentUser.value!.uid,
+        otherUserId,
+      ]..sort();
+      
+      chatRoomId = users.join('_');
+      print('Initialized chat room: $chatRoomId');
+
+      await _chatService.createChatRoom(
         _authService.currentUser.value!.uid,
         otherUserId,
       );
-      
-      // Verify chat room was created
-      final chatRoom = await _firestore
+
+      // Update the query to order by timestamp ascending
+      _firestore
           .collection('chat_rooms')
           .doc(chatRoomId)
-          .get();
-          
-      if (!chatRoom.exists) {
-        throw 'Failed to create chat room';
-      }
-
-      // Listen to messages
-      _chatService.getMessages(chatRoomId).listen(
-        (msgs) {
-          messages.value = msgs;
+          .collection('messages')
+          .orderBy('timestamp', descending: false)
+          .snapshots()
+          .listen(
+        (snapshot) {
+          print('Received messages: ${snapshot.docs.length}');
+          final newMessages = snapshot.docs
+              .map((doc) {
+                print('Message data: ${doc.data()}');
+                return MessageModel.fromMap(doc.data());
+              })
+              .toList();
+          messages.assignAll(newMessages);
+          print('Updated messages list: ${messages.length}');
         },
         onError: (error) {
           print('Error listening to messages: $error');
-          Get.snackbar(
-            'Error',
-            'Failed to load messages',
-            snackPosition: SnackPosition.BOTTOM,
-          );
         },
       );
+
     } catch (e) {
       print('Error in _initializeChat: $e');
-      Get.snackbar(
-        'Error',
-        'Failed to initialize chat',
-        snackPosition: SnackPosition.BOTTOM,
-      );
     } finally {
       isLoading.value = false;
     }
   }
 
-  Future<void> sendMessage(String content) async {
+  Future<void> sendMessage(String receiverId, String content, MessageType type) async {
     if (content.trim().isEmpty) return;
     
     try {
+      if (chatRoomId.isEmpty) {
+        print('Error: ChatRoomId is empty');
+        throw 'Chat room not initialized';
+      }
+
+      if (_authService.currentUser.value?.uid == null) {
+        print('Error: Current user is null');
+        throw 'User not authenticated';
+      }
+
       await _chatService.sendMessage(
         chatRoomId,
-        _authService.currentUser.value!.uid,
-        content,
+        currentUserId,
+        content.trim(),
       );
+      
       messageController.clear();
+      updateTypingStatus(receiverId, false);
     } catch (e) {
       print('Error sending message: $e');
       Get.snackbar(
         'Error',
-        'Failed to send message. Please try again.',
+        'Failed to send message: $e',
         snackPosition: SnackPosition.BOTTOM,
       );
     }
   }
 
-  String? get currentUserId => _authService.currentUser.value?.uid;
+  String get currentUserId => _authService.currentUser.value?.uid ?? '';
 
   void onTyping() {
     isTyping.value = true;
@@ -143,6 +171,37 @@ class ChatController extends GetxController {
         .collection('chat_rooms')
         .doc(chatRoomId)
         .update({'unreadCount': 0});
+  }
+
+  void updateTypingStatus(String receiverId, bool typing) {
+    if (_typingTimer?.isActive ?? false) _typingTimer!.cancel();
+    
+    _firestore.collection('typing_status').doc(currentUserId).set({
+      'isTyping': typing,
+      'timestamp': FieldValue.serverTimestamp(),
+      'receiverId': receiverId,
+    });
+
+    if (typing) {
+      _typingTimer = Timer(const Duration(seconds: 5), () {
+        updateTypingStatus(receiverId, false);
+      });
+    }
+  }
+
+  Stream<bool> getTypingStatus(String userId) {
+    return _firestore.collection('typing_status')
+        .doc(userId)
+        .snapshots()
+        .map((snapshot) {
+      if (!snapshot.exists) return false;
+      final data = snapshot.data()!;
+      if (data['receiverId'] != currentUserId) return false;
+      
+      final timestamp = (data['timestamp'] as Timestamp).toDate();
+      final diff = DateTime.now().difference(timestamp);
+      return data['isTyping'] && diff.inSeconds < 6;
+    });
   }
 
   @override

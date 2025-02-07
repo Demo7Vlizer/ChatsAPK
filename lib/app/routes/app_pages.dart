@@ -41,8 +41,9 @@ class AppPages {
     ),
     GetPage(
       name: Routes.CHAT,
-      page: () => ChatView(),
+      page: () => const ChatView(),
       binding: ChatBinding(),
+      transition: Transition.rightToLeft,
     ),
   ];
 }

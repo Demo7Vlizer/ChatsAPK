@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/home_controller.dart';
+import 'package:my/app/routes/app_pages.dart';
 
 class HomeView extends GetView<HomeController> {
   const HomeView({Key? key}) : super(key: key);
@@ -125,10 +126,13 @@ class HomeView extends GetView<HomeController> {
                             photoUrl: user.photoUrl,
                             message: 'Tap to start chatting',
                             time: user.isOnline ? 'Online' : 'Offline',
-                            onTap: () => controller.startChat(
-                              user.uid,
-                              user.name,
-                              user.photoUrl,
+                            onTap: () => Get.toNamed(
+                              Routes.CHAT,
+                              arguments: {
+                                'userId': user.id,
+                                'userName': user.name,
+                                'userPhoto': user.photoUrl,
+                              },
                             ),
                           );
                         },
@@ -222,3 +226,4 @@ class ChatItem extends StatelessWidget {
     );
   }
 }
+

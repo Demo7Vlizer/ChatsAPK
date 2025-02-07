@@ -1,51 +1,91 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get/get_state_manager/src/rx_flutter/rx_obx_widget.dart';
+import 'package:intl/intl.dart';
 import 'package:my/app/data/models/message_model.dart';
 import '../controllers/chat_controller.dart';
-import 'package:get/get_state_manager/src/rx_flutter/rx_obx_widget.dart';
+import '../widgets/chat_input.dart';
 
 class ChatView extends GetView<ChatController> {
+  const ChatView({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
+    final receiverId = Get.arguments['userId'] as String? ?? '';
+    final scrollController = ScrollController();
+
+    // Function to scroll to bottom
+    void scrollToBottom() {
+      if (scrollController.hasClients) {
+        scrollController.animateTo(
+          scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    }
+
     return Scaffold(
+      backgroundColor: const Color(0xFFF2F2F2),
       appBar: AppBar(
         backgroundColor: const Color(0xFF6C63FF),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Get.back(),
         ),
+        titleSpacing: 0,
         title: Row(
           children: [
             CircleAvatar(
               radius: 20,
-              backgroundImage: NetworkImage(controller.otherUserPhoto),
+              backgroundImage: NetworkImage(Get.arguments['userPhoto'] as String? ?? ''),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  controller.otherUserName,
+                  Get.arguments['userName'] as String? ?? 'Chat',
                   style: const TextStyle(
+                    color: Colors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                Obx(() => Text(
-                  controller.isOtherUserOnline.value ? 'Online' : 'Offline',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.white70,
-                  ),
-                )),
+                Row(
+                  children: [
+                    Obx(() => Text(
+                      controller.isOtherUserOnline.value ? 'Online' : 'Offline',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.white70,
+                      ),
+                    )),
+                    StreamBuilder<bool>(
+                      stream: controller.getTypingStatus(receiverId),
+                      builder: (context, snapshot) {
+                        if (snapshot.data == true) {
+                          return const Text(
+                            ' • typing...',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white70,
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                  ],
+                ),
               ],
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.more_vert),
+            icon: const Icon(Icons.more_vert, color: Colors.white),
             onPressed: () {},
           ),
         ],
@@ -53,90 +93,64 @@ class ChatView extends GetView<ChatController> {
       body: Column(
         children: [
           Obx(() => controller.isLoading.value 
-            ? const Center(child: CircularProgressIndicator())
+            ? const LinearProgressIndicator(
+                backgroundColor: Color(0xFF6C63FF),
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              )
             : const SizedBox.shrink()),
           Expanded(
             child: Container(
-              color: Colors.white,
-              child: Obx(() => ListView.builder(
-                reverse: true,
-                padding: const EdgeInsets.all(16),
-                itemCount: controller.messages.length,
-                itemBuilder: (context, index) {
-                  final message = controller.messages[index];
-                  final isMe = message.senderId == controller.currentUserId;
-                  return MessageBubble(
-                    message: message,
-                    isMe: isMe,
-                  );
-                },
-              )),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(30),
+                  topRight: Radius.circular(30),
+                ),
+              ),
+              child: Obx(() {
+                // Scroll to bottom when messages change
+                WidgetsBinding.instance.addPostFrameCallback((_) => scrollToBottom());
+                
+                return ListView.builder(
+                  controller: scrollController,
+                  reverse: false,
+                  padding: const EdgeInsets.all(16),
+                  itemCount: controller.messages.length,
+                  itemBuilder: (context, index) {
+                    final message = controller.messages[index];
+                    final isMe = message.senderId == controller.currentUserId;
+                    return MessageBubble(
+                      message: message,
+                      isMe: isMe,
+                    );
+                  },
+                );
+              }),
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            color: Colors.white,
-            child: SafeArea(
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 25,
-                    backgroundColor: const Color(0xFF6C63FF),
-                    child: IconButton(
-                      icon: const Icon(Icons.mic, color: Colors.white),
-                      onPressed: () {},
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.sentiment_satisfied_alt_outlined),
-                            onPressed: () {},
-                            color: Colors.grey[600],
-                          ),
-                          Expanded(
-                            child: TextField(
-                              controller: controller.messageController,
-                              decoration: const InputDecoration(
-                                hintText: 'Type a message...',
-                                border: InputBorder.none,
-                              ),
-                              onChanged: (_) => controller.onTyping(),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.attach_file),
-                            onPressed: () {},
-                            color: Colors.grey[600],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  CircleAvatar(
-                    radius: 25,
-                    backgroundColor: const Color(0xFF6C63FF),
-                    child: IconButton(
-                      icon: const Icon(Icons.send, color: Colors.white),
-                      onPressed: () {
-                        if (controller.messageController.text.isNotEmpty) {
-                          controller.sendMessage(controller.messageController.text);
-                          controller.messageController.clear();
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  spreadRadius: 1,
+                  blurRadius: 3,
+                  offset: const Offset(0, -1),
+                ),
+              ],
+            ),
+            child: ChatInput(
+              onTextChanged: (text) {
+                if (text.isNotEmpty) {
+                  controller.updateTypingStatus(receiverId, true);
+                } else {
+                  controller.updateTypingStatus(receiverId, false);
+                }
+              },
+              onSendPressed: (text) {
+                controller.sendMessage(receiverId, text, MessageType.text);
+              },
             ),
           ),
         ],
@@ -167,8 +181,21 @@ class MessageBubble extends StatelessWidget {
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
-            color: isMe ? const Color(0xFF6C63FF) : Colors.grey[200],
-            borderRadius: BorderRadius.circular(20),
+            color: isMe ? const Color(0xFF6C63FF) : const Color(0xFFF0F0F0),
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(20),
+              topRight: const Radius.circular(20),
+              bottomLeft: Radius.circular(isMe ? 20 : 5),
+              bottomRight: Radius.circular(isMe ? 5 : 20),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                spreadRadius: 1,
+                blurRadius: 3,
+                offset: const Offset(0, 1),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -176,26 +203,39 @@ class MessageBubble extends StatelessWidget {
               Text(
                 message.content,
                 style: TextStyle(
-                  color: isMe ? Colors.white : Colors.black,
+                  color: isMe ? Colors.white : Colors.black87,
                   fontSize: 16,
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                _formatTime(message.timestamp),
-                style: TextStyle(
-                  color: isMe ? Colors.white70 : Colors.grey[600],
-                  fontSize: 12,
-                ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    DateFormat('HH:mm').format(message.timestamp),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isMe ? Colors.white70 : Colors.black45,
+                    ),
+                  ),
+                  if (isMe) ...[
+                    const SizedBox(width: 4),
+                    Icon(
+                      message.status == MessageStatus.sent
+                          ? Icons.check
+                          : Icons.done_all,
+                      size: 14,
+                      color: message.status == MessageStatus.read
+                          ? Colors.blue[200]
+                          : Colors.white70,
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
         ),
       ),
     );
-  }
-
-  String _formatTime(DateTime time) {
-    return '${time.hour}:${time.minute.toString().padLeft(2, '0')} ${time.hour >= 12 ? 'PM' : 'AM'}';
   }
 } 

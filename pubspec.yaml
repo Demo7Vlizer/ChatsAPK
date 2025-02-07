@@ -39,7 +39,6 @@ dependencies:
   cloud_firestore: ^4.15.9
   firebase_storage: ^11.6.0
   image_picker: ^1.0.7
-  emoji_picker_flutter: ^1.6.3
   audio_waveforms: ^1.0.4
   path_provider: ^2.1.2
   
@@ -50,13 +49,25 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
+  flutter_launcher_icons: ^0.13.1
   flutter_lints: ^5.0.0
+  intl: ^0.18.1
+
+# Add flutter_launcher_icons configuration at root level (not under dev_dependencies)
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path_android: "assets/images/ImageSets/android/drawable-xxxhdpi/ChatApkLogo.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/ImageSets/android/drawable-xxxhdpi/ChatApkLogo.png"
+  android_res_folder: "android/app/src/main/res/"
+  image_path_ios: "assets/images/ImageSets/android/drawable-xxxhdpi/ChatApkLogo.png"
+
+# The "flutter_lints" package below contains a set of recommended lints to
+# encourage good coding practices. The lint set provided by the package is
+# activated in the `analysis_options.yaml` file located at the root of your
+# package. See that file for information about deactivating specific lint
+# rules and activating additional ones.
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -74,6 +85,12 @@ flutter:
     - assets/images/onboard.png
     - assets/images/googleLogo.png
     - assets/images/boy.jpg
+    - assets/images/ImageSets/android/drawable-hdpi/ChatApkLogo.png
+    - assets/images/ImageSets/android/drawable-mdpi/ChatApkLogo.png
+    - assets/images/ImageSets/android/drawable-xhdpi/ChatApkLogo.png
+    - assets/images/ImageSets/android/drawable-xxhdpi/ChatApkLogo.png
+    - assets/images/ImageSets/android/drawable-xxxhdpi/ChatApkLogo.png
+    
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

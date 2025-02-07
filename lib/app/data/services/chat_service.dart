@@ -20,55 +20,54 @@ class ChatService extends GetxService {
   // Send message with real-time updates
   Future<void> sendMessage(String chatId, String senderId, String content) async {
     try {
-      final timestamp = DateTime.now();
+      print('===== CHAT SERVICE: SEND MESSAGE =====');
+      print('ChatId: $chatId');
+      print('SenderId: $senderId');
       
-      // First verify chat room exists
+      // Verify chat room exists
       final chatRoom = await _firestore.collection('chat_rooms').doc(chatId).get();
+      print('Chat room exists: ${chatRoom.exists}');
+      
       if (!chatRoom.exists) {
-        throw 'Chat room not found';
+        print('Creating new chat room...');
+        await createChatRoom(senderId, chatId.split('_').firstWhere((id) => id != senderId));
       }
 
       final message = MessageModel(
-        id: timestamp.millisecondsSinceEpoch.toString(),
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
         senderId: senderId,
+        receiverId: chatId.split('_').firstWhere((id) => id != senderId),
         content: content,
-        type: 'text',
-        timestamp: timestamp,
-        isRead: false,
+        timestamp: DateTime.now(),
+        type: MessageType.text,
+        status: MessageStatus.sent,
       );
 
-      // Use transaction to ensure both operations complete
-      await _firestore.runTransaction((transaction) async {
-        // Add message
-        transaction.set(
-          _firestore
-              .collection('chat_rooms')
-              .doc(chatId)
-              .collection('messages')
-              .doc(message.id),
-          message.toMap(),
-        );
+      print('Saving message to Firestore...');
+      await _firestore
+          .collection('chat_rooms')
+          .doc(chatId)
+          .collection('messages')
+          .doc(message.id)
+          .set(message.toMap());
 
-        // Update chat room
-        transaction.update(
-          _firestore.collection('chat_rooms').doc(chatId),
-          {
-            'lastMessage': content,
-            'lastMessageTime': timestamp.toIso8601String(),
-            'lastMessageSenderId': senderId,
-            'unreadCount': FieldValue.increment(1),
-          },
-        );
+      print('Updating chat room metadata...');
+      await _firestore.collection('chat_rooms').doc(chatId).update({
+        'lastMessage': content,
+        'lastMessageTime': DateTime.now().toIso8601String(),
+        'lastMessageSenderId': senderId,
       });
+      
+      print('Message sent successfully!');
     } catch (e) {
-      print('Error in sendMessage: $e');
-      throw 'Failed to send message';
+      print('Error in ChatService.sendMessage: $e');
+      print('Stack trace: ${StackTrace.current}');
+      throw 'Failed to send message: $e';
     }
   }
 
   // Send image message
   Future<void> sendImage(String chatId, String senderId, File imageFile) async {
-    // Upload image to Firebase Storage
     final ref = _storage.ref().child('chat_images/${DateTime.now()}.jpg');
     await ref.putFile(imageFile);
     final imageUrl = await ref.getDownloadURL();
@@ -76,17 +75,19 @@ class ChatService extends GetxService {
     final message = MessageModel(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       senderId: senderId,
-      content: 'Image',
-      type: 'image',
+      receiverId: chatId.split('_').firstWhere((id) => id != senderId),
+      content: imageUrl,
+      type: MessageType.image,
       timestamp: DateTime.now(),
-      mediaUrl: imageUrl,
+      status: MessageStatus.sent,
     );
 
     await _firestore
         .collection('chat_rooms')
         .doc(chatId)
         .collection('messages')
-        .add(message.toMap());
+        .doc(message.id)
+        .set(message.toMap());
 
     await _updateLastMessage(chatId, 'Image');
   }
@@ -97,7 +98,7 @@ class ChatService extends GetxService {
         .collection('chat_rooms')
         .doc(chatId)
         .collection('messages')
-        .orderBy('timestamp', descending: false)
+        .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => MessageModel.fromMap(doc.data()))
