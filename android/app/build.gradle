@@ -7,8 +7,8 @@ plugins {
 }
 
 android {
-    namespace = "com.mdspl.my"
-    compileSdk = flutter.compileSdkVersion
+    namespace "com.mdspl.my"
+    compileSdkVersion flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

@@ -1,17 +1,19 @@
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:my/app/core/config/cloudinary_config.dart';
 import 'dart:io';
 import '../models/message_model.dart';
 import '../models/chat_room_model.dart';
 import 'package:cloudinary_public/cloudinary_public.dart';
+import '../exceptions/chat_exception.dart';
 
 class ChatService extends GetxService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
-  // Add Cloudinary instance with your credentials
+
+  // Update Cloudinary configuration
   final cloudinary = CloudinaryPublic(
-    'dt2jjyafx', // Your cloud name
-    'chat_images_preset', // Your unsigned upload preset name
+    'dtja0hsoy',  // Your cloud name
+    'chat_preset',  // Must match exactly with your preset name
     cache: false,
   );
 
@@ -24,7 +26,8 @@ class ChatService extends GetxService {
   }
 
   // Send message with real-time updates
-  Future<void> sendMessage(String chatId, String senderId, String content) async {
+  Future<void> sendMessage(
+      String chatId, String senderId, String content) async {
     try {
       final message = {
         'senderId': senderId,
@@ -41,6 +44,8 @@ class ChatService extends GetxService {
           .doc(chatId)
           .collection('messages')
           .add(message);
+
+      await _updateLastMessage(chatId, content);
     } catch (e) {
       print('Error in ChatService.sendMessage: $e');
       throw 'Failed to send message: $e';
@@ -48,56 +53,31 @@ class ChatService extends GetxService {
   }
 
   // Send image message
-  Future<void> sendImage(String chatId, String senderId, File imageFile) async {
+  Future<String?> sendImage(File imageFile, String chatId) async {
     try {
       print('Starting image upload to Cloudinary...');
+      print('Image path: ${imageFile.path}');
 
-      // Upload to Cloudinary with error handling
-      CloudinaryResponse response;
-      try {
-        response = await cloudinary.uploadFile(
-          CloudinaryFile.fromFile(
-            imageFile.path,
-            resourceType: CloudinaryResourceType.Image,
-            folder: 'chat_images',
-          ),
-        );
-        print('Cloudinary upload successful: ${response.secureUrl}');
-      } catch (cloudinaryError) {
-        print('Cloudinary upload error: $cloudinaryError');
-        throw 'Failed to upload image to Cloudinary: $cloudinaryError';
+      // Check file size (10MB limit)
+      final fileSize = await imageFile.length();
+      if (fileSize > 10 * 1024 * 1024) {
+        throw ChatException('Image size too large. Maximum size is 10MB');
       }
 
-      // Create message data with Cloudinary URL
-      final message = {
-        'senderId': senderId,
-        'receiverId': chatId.split('_').firstWhere((id) => id != senderId),
-        'content': response.secureUrl,
-        'timestamp': FieldValue.serverTimestamp(),
-        'type': MessageType.image.index,
-        'status': MessageStatus.sent.index,
-        'isRead': false,
-      };
+      final response = await cloudinary.uploadFile(
+        CloudinaryFile.fromFile(
+          imageFile.path,
+          resourceType: CloudinaryResourceType.Image,
+          // Use minimal configuration to match preset settings
+        ),
+      );
 
-      print('Saving to Firestore...');
-      await _firestore
-          .collection('chat_rooms')
-          .doc(chatId)
-          .collection('messages')
-          .add(message);
-
-      print('Updating chat room metadata...');
-      await _firestore.collection('chat_rooms').doc(chatId).update({
-        'lastMessage': '📷 Image',
-        'lastMessageTime': FieldValue.serverTimestamp(),
-        'lastMessageSenderId': senderId,
-      });
-
-      print('Image sent successfully!');
-    } catch (e, stackTrace) {
-      print('Error in sendImage: $e');
-      print('Stack trace: $stackTrace');
-      throw 'Failed to send image: $e';
+      print('Cloudinary upload successful: ${response.secureUrl}');
+      await _updateLastMessage(chatId, '📷 Image');
+      return response.secureUrl;
+    } catch (e) {
+      print('Detailed error uploading image: $e');
+      throw ChatException('Failed to upload image');
     }
   }
 
@@ -178,4 +158,69 @@ class ChatService extends GetxService {
       throw 'Failed to delete message';
     }
   }
-} 
+
+  // Simplified upload method
+  Future<String?> uploadMedia(File file, MediaType type) async {
+    try {
+      print('Starting upload to Cloudinary...');
+      print('Using preset: chat_preset');
+      print('File path: ${file.path}');
+
+      final response = await cloudinary.uploadFile(
+        CloudinaryFile.fromFile(
+          file.path,
+          resourceType: CloudinaryResourceType.Auto,
+          // Remove folder parameter to use preset default
+        ),
+      );
+
+      print('Upload successful: ${response.secureUrl}');
+      return response.secureUrl;
+    } catch (e) {
+      print('Upload error details: $e');
+      throw ChatException('Failed to upload media');
+    }
+  }
+
+  // Enhanced message sending with media support
+  Future<void> sendMediaMessage(
+    String chatId,
+    String senderId,
+    String mediaUrl,
+    MessageType type,
+  ) async {
+    try {
+      final message = {
+        'senderId': senderId,
+        'receiverId': chatId.split('_').firstWhere((id) => id != senderId),
+        'content': mediaUrl,
+        'timestamp': FieldValue.serverTimestamp(),
+        'type': type.index,
+        'status': MessageStatus.sent.index,
+        'isRead': false,
+      };
+
+      await _firestore
+          .collection('chat_rooms')
+          .doc(chatId)
+          .collection('messages')
+          .add(message);
+
+      // Update last message with appropriate icon
+      String lastMessage =
+          type == MessageType.image ? '📷 Image' : 'Media message';
+
+      await _updateLastMessage(chatId, lastMessage);
+    } catch (e) {
+      print('Error sending media message: $e');
+      throw ChatException('Failed to send media message');
+    }
+  }
+}
+
+// Add this enum
+enum MediaType {
+  image,
+  audio,
+  video,
+}

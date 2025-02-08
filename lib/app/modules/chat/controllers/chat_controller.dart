@@ -6,8 +6,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/config/app_config.dart';
-import 'package:image_picker/image_picker.dart';
+// import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:dio/dio.dart';
+import 'dart:typed_data';
+import 'package:path_provider/path_provider.dart';
 
 class ChatController extends GetxController {
   final ChatService _chatService = Get.find<ChatService>();
@@ -151,13 +155,28 @@ class ChatController extends GetxController {
   Future<void> sendImage(File imageFile) async {
     try {
       isLoading.value = true;
-      await _chatService.sendImage(chatRoomId, currentUserId, imageFile);
+      
+      final imageUrl = await _chatService.uploadMedia(
+        imageFile,
+        MediaType.image,
+      );
+      
+      if (imageUrl != null) {
+        await _chatService.sendMediaMessage(
+          chatRoomId,
+          currentUserId,
+          imageUrl,
+          MessageType.image,
+        );
+      }
     } catch (e) {
       print('Error sending image: $e');
       Get.snackbar(
         'Error',
-        'Failed to send image',
+        'Failed to send image. Please try again.',
         snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
     } finally {
       isLoading.value = false;
@@ -270,6 +289,75 @@ class ChatController extends GetxController {
         'Failed to delete message: $e',
         snackPosition: SnackPosition.BOTTOM,
       );
+    }
+  }
+
+  Future<void> downloadImage(String imageUrl) async {
+    try {
+      // Request storage permission
+      var status = await Permission.storage.request();
+      
+      if (status.isGranted) {
+        isLoading.value = true;
+        
+        // Get the temporary directory
+        final dir = await getTemporaryDirectory();
+        final fileName = "chat_image_${DateTime.now().millisecondsSinceEpoch}.jpg";
+        final savePath = "${dir.path}/$fileName";
+        
+        // Download image
+        await Dio().download(
+          imageUrl,
+          savePath,
+          onReceiveProgress: (received, total) {
+            if (total != -1) {
+              print("${(received / total * 100).toStringAsFixed(0)}%");
+            }
+          }
+        );
+
+        // Move file to gallery using MediaStore API
+        final result = await Dio().post(
+          'content://media/external/images/media',
+          data: {
+            'relative_path': 'Pictures/ChitChat',
+            '_data': savePath,
+            'mime_type': 'image/jpeg',
+            'is_pending': 0,
+          },
+        );
+
+        if (result.statusCode == 200 || result.statusCode == 201) {
+          Get.snackbar(
+            'Success',
+            'Image saved to gallery',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green,
+            colorText: Colors.white,
+          );
+        } else {
+          throw 'Failed to save image';
+        }
+      } else {
+        Get.snackbar(
+          'Permission Denied',
+          'Please grant storage permission to download images',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
+      print('Error downloading image: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to download image',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      isLoading.value = false;
     }
   }
 

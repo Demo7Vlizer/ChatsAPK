@@ -6,6 +6,8 @@ import 'package:my/app/data/models/message_model.dart';
 import 'package:my/app/widgets/keyboard_dismiss.dart';
 import '../controllers/chat_controller.dart';
 import '../widgets/chat_input.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:my/app/modules/image_preview/views/image_preview.dart';
 
 class ChatView extends GetView<ChatController> {
   const ChatView({Key? key}) : super(key: key);
@@ -149,6 +151,9 @@ class ChatView extends GetView<ChatController> {
                             onLongPress: isMe
                                 ? () => controller.deleteMessage(message)
                                 : null,
+                            imageUrl: message.type == MessageType.image
+                                ? message.content
+                                : '',
                           );
                         },
                       );
@@ -205,12 +210,14 @@ class MessageBubble extends StatelessWidget {
   final MessageModel message;
   final bool isMe;
   final VoidCallback? onLongPress;
+  final String imageUrl;
 
   const MessageBubble({
     Key? key,
     required this.message,
     required this.isMe,
     this.onLongPress,
+    required this.imageUrl,
   }) : super(key: key);
 
   @override
@@ -247,33 +254,28 @@ class MessageBubble extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 if (message.type == MessageType.image)
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      message.content,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return SizedBox(
+                  GestureDetector(
+                    onTap: () => Get.to(() => ImagePreview(imageUrl: imageUrl)),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        width: 200,
+                        height: 200,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
                           width: 200,
                           height: 200,
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
-                                  : null,
-                            ),
-                          ),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
+                          color: Colors.grey[300],
+                          child: const Center(child: CircularProgressIndicator()),
+                        ),
+                        errorWidget: (context, url, error) => Container(
                           width: 200,
                           height: 200,
                           color: Colors.grey[300],
                           child: const Icon(Icons.error),
-                        );
-                      },
+                        ),
+                      ),
                     ),
                   )
                 else

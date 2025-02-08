@@ -44,6 +44,11 @@ dependencies:
   flutter_dotenv: ^5.1.0
   flutter_image_compress: ^2.1.0
   cloudinary_public: ^0.21.0
+  cached_network_image: ^3.3.1
+  photo_view: ^0.14.0
+  dio: ^5.4.1
+  permission_handler: ^11.0.1
+  gallery_saver: ^2.3.2
   
 
   # The following adds the Cupertino Icons font to your application.

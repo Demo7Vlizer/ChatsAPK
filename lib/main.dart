@@ -6,6 +6,7 @@ import 'app/bindings/initial_binding.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'app/data/services/auth_service.dart';
 import 'app/core/config/app_config.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +16,8 @@ void main() async {
   
   // Initialize environment variables before running app
   await AppConfig.init();
+  
+  await dotenv.load(fileName: ".env");
   
   runApp(const MyApp());
 }
