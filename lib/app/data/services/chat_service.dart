@@ -182,7 +182,37 @@ class ChatService extends GetxService {
     }
   }
 
-  // Enhanced message sending with media support
+  // Add video upload method
+  Future<String?> sendVideo(File videoFile, String chatId) async {
+    try {
+      print('Starting video upload to Cloudinary...');
+      print('Video path: ${videoFile.path}');
+
+      // Check file size (100MB limit for videos)
+      final fileSize = await videoFile.length();
+      if (fileSize > 100 * 1024 * 1024) {
+        throw ChatException('Video size too large. Maximum size is 100MB');
+      }
+
+      final response = await cloudinary.uploadFile(
+        CloudinaryFile.fromFile(
+          videoFile.path,
+          resourceType: CloudinaryResourceType.Video,
+          // Add video-specific options if needed
+          folder: 'chat_videos',
+        ),
+      );
+
+      print('Cloudinary upload successful: ${response.secureUrl}');
+      await _updateLastMessage(chatId, '🎥 Video');
+      return response.secureUrl;
+    } catch (e) {
+      print('Detailed error uploading video: $e');
+      throw ChatException('Failed to upload video');
+    }
+  }
+
+  // Update sendMediaMessage to handle videos
   Future<void> sendMediaMessage(
     String chatId,
     String senderId,
@@ -207,8 +237,13 @@ class ChatService extends GetxService {
           .add(message);
 
       // Update last message with appropriate icon
-      String lastMessage =
-          type == MessageType.image ? '📷 Image' : 'Media message';
+      String lastMessage = switch (type) {
+        MessageType.image => '📷 Image',
+        MessageType.video => '🎥 Video',
+        MessageType.audio => '🎵 Audio',
+        MessageType.file => '📎 File',
+        _ => 'Media message'
+      };
 
       await _updateLastMessage(chatId, lastMessage);
     } catch (e) {

@@ -64,8 +64,9 @@ class MessageModel {
 enum MessageType {
   text,
   image,
-  voice,
-  file
+  video,
+  audio,
+  file,
 }
 
 enum MessageStatus {

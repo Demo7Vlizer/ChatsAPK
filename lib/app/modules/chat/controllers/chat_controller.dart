@@ -183,6 +183,37 @@ class ChatController extends GetxController {
     }
   }
 
+  Future<void> sendVideo(File videoFile) async {
+    try {
+      isLoading.value = true;
+      
+      final videoUrl = await _chatService.sendVideo(
+        videoFile,
+        chatRoomId,
+      );
+      
+      if (videoUrl != null) {
+        await _chatService.sendMediaMessage(
+          chatRoomId,
+          currentUserId,
+          videoUrl,
+          MessageType.video,
+        );
+      }
+    } catch (e) {
+      print('Error sending video: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to send video. Please try again.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
   String get currentUserId => _authService.currentUser.value?.uid ?? '';
 
   String get currentChatId => chatRoomId;

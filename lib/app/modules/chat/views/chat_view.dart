@@ -193,6 +193,9 @@ class ChatView extends GetView<ChatController> {
                       onImageSelected: (file) {
                         controller.sendImage(file);
                       },
+                      onVideoSelected: (file) {
+                        controller.sendVideo(file);
+                      },
                     ),
                   ),
                 ),
