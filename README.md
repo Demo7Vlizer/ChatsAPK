@@ -28,3 +28,8 @@ Never commit the `.env` file or actual API keys to version control.
 1. Get `google-services.json` from Firebase Console
 2. Place it in `android/app/google-services.json`
 3. Never commit this file to version control
+
+//----------------------------------------------------------------------------
+![alt text](assets/sample/image.png) 
+![alt text](assets/sample/image-1.png) 
+![alt text](assets/sample/image-2.png)
