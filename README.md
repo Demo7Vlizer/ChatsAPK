@@ -30,6 +30,19 @@ Never commit the `.env` file or actual API keys to version control.
 3. Never commit this file to version control
 
 //----------------------------------------------------------------------------
-![alt text](assets/sample/image.png) 
-![alt text](assets/sample/image-1.png) 
-![alt text](assets/sample/image-2.png)
+
+## App Preview
+
+### Main App Demo
+![App Demo](assets/images/ShoppingBagIntro.gif)
+
+### Screenshots
+<p float="left">
+  <img src="assets/sample/image.png" width="250" />
+  <img src="assets/sample/image-1.png" width="250" />
+  <img src="assets/sample/image-2.png" width="250" />
+</p>
+
+
+
+

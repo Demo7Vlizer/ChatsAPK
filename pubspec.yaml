@@ -49,6 +49,9 @@ dependencies:
   dio: ^5.4.1
   permission_handler: ^11.0.1
   # Remove gallery_saver temporarily
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  flutter_svg: ^2.0.10
   
 
   # The following adds the Cupertino Icons font to your application.
@@ -60,6 +63,8 @@ dev_dependencies:
   flutter_launcher_icons: ^0.13.1
   flutter_lints: ^5.0.0
   intl: ^0.18.1
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.8
   
 
 # Add flutter_launcher_icons configuration at root level (not under dev_dependencies)
@@ -100,6 +105,8 @@ flutter:
     - assets/images/ImageSets/android/drawable-xhdpi/ChatApkLogo.png
     - assets/images/ImageSets/android/drawable-xxhdpi/ChatApkLogo.png
     - assets/images/ImageSets/android/drawable-xxxhdpi/ChatApkLogo.png
+    - assets/images/
+    - assets/images/different_Onboarding/
     
 
   # An image asset can refer to one or more resolution-specific "variants", see
